@@ -1,80 +1,67 @@
 #include <iostream>
 #include <vector>
+#include <string>
 #include "table.h"
 
-using namespace std;
-/*
-struct Vector {
-int size;
-vector<int> elements;
-};
 
-Vector addVectors(Vector v1, Vector v2) {
-Vector result;
-result.size = v1.size + v2.size;
-for (int i = 0; i < result.size; i++) {
-if (i < v1.size)
-result.elements.push_back(v1.elements[i]);
-if (i >= v1.size && i < v1.size + v2.size)
-result.elements.push_back(v2.elements[i - v1.size]);
-}
-return result;
+
+void clientDB::createTable(pqxx::work& tx, std::string table, std::string s)
+{
+	static int i;
+	T[i] = table;
+	i++;
+	tx.exec("create table if not exists " + table + "(" + s + ")");
 }
 
-void printVector(Vector v) {
-cout << "Vector: { ";
-for (int element : v.elements)
-cout << element << ’ ';
-Продолжи    
-
-cout << “}” << endl;
+void clientDB::insertData(pqxx::work& tx, std::string id, std::string phoneNum, std::string sId, std::string sPhone)
+{
+	tx.exec("insert into " + T[1] + '(' + phoneNum + ") " + " values('" + sPhone + "'); ");
+	tx.exec("insert into " + T[2] + "(id, " + phoneNum + ") " + " values('" + sId + "', '" + sPhone + "'); ");
 }
 
-int main() {
-Vector v1 = {3, {1, 2, 3}};
-Vector v2 = {4, {4, 5, 6, 7}};
-
-Vector sum = addVectors(v1, v2);
-
-printVector(v1);
-cout << endl;
-printVector(v2);
-cout << endl;
-printVector(sum);
-
-return 0;
-
-}
-Напиши это же но с распаралелливанием вычислений    
-
-В общем случае сложно дать точный ответ, так как это зависит от конкретной задачи и условий ее выполнения. Однако, вот пример кода, который может помочь:
-
-#include <future>
-#include <thread>
-#include <iostream>
-
-std::vector<std::future<Vector>> tasks;
-std::vector<Vector> input_vectors;
-
-for(int i=0; i<size; ++i) {
-  Vector v = read_vector();
-  input_vectors.push_back(std::move(v));
+void clientDB::insertData(pqxx::work& tx, std::string id, std::string name, std::string surename, std::string email, std::string phonenumber, std::string sId, std::string sName, std::string sSureName, std::string sEmail, std::vector<std::string> sPhone)
+{
+	tx.exec("insert into " + T[0] + '(' + id + ", " + name + ", " + surename + ", " + email + ") " + " values('" + sId + "', '" + sName + "', '" + sSureName + "', '" + sEmail + "'); ");
+	if (!sPhone.empty())
+	{
+		for (auto& m : sPhone) {
+			insertData(tx, id, phonenumber, sId, m);
+		}
+	}
 }
 
-std::atomic<int> done(0);
-for(auto& v : input_vectors) {
-  tasks.push_back(std::async(std::launch::async, [&v]() {
-    return addVectors(v);
-  }));
-}
-  
-for(auto& t : tasks) {
-  auto r = t.get();
-  result_vector.push_back(r);
-  ++done;
-  if(done == tasks.size()) {
-    break;
-  }
+void clientDB::updateData(pqxx::work& tx, std::string table, std::string s)
+{
+	tx.exec("update " + table + " " + s);
 }
 
-*/
+void clientDB::deleteData(pqxx::work& tx, std::string table, std::string s)
+{
+	tx.exec("delete from " + table + " " + s);
+}
+
+void clientDB::findClient(pqxx::work& tx, std::string table, std::string col, std::string text)
+{
+	int id = 0, tel = 0;
+	if (table == T[0])
+	{
+		for (auto [id, name, surename, email] : tx.query <int, std::string, std::string, std::string>("select * from " + T[0] + " WHERE " + col + " LIKE '" + text + "'"))
+		{
+			std::cout << id << " " << name << " " << surename << " " << email << std::endl;
+		}
+	}
+	else if (table == T[2])
+	{
+		for (auto [id_, tel_] : tx.query <int, int>("select * from " + T[2] + " WHERE " + col + " = " + text ))
+		{
+			id = id_;
+			tel = tel_;
+		}
+		for (auto [id, name, surename, email] : tx.query <int, std::string, std::string, std::string>("select * from " + T[0] + " WHERE id = " + std::to_string(id)))
+		{
+			std::cout << id << " " << name << " " << surename << " " << email << " " << tel << std::endl;
+		}
+	}
+}
+
+
